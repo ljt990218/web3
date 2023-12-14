@@ -1,4 +1,4 @@
-# Vue3-Ts-H5-Template
+# Vue3-Ts-H5-Web3
 
 This template should help get you started developing with Vue 3 in Vite.
 And continue to add and update simple examples of plug-ins.
