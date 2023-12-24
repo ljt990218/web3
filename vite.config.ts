@@ -36,9 +36,9 @@ export default defineConfig({
     }
   },
   server: {
-    // port: 3333, // 启动端口
+    port: 7545, // 启动端口
     // open: true,
-    // host: "192.168.124.34",
+    // host: "192.168.31.86",
     // proxy: {
     //   // 选项写法
     //   "/api": "http://:80", //代理网址
