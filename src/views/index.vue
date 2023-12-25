@@ -27,32 +27,37 @@ const changeLang = () => {
 }
 
 import { Web3 } from 'web3'
-var web3 = new Web3(Web3.givenProvider || 'http://192.168.31.86:7545')
+var web3 = new Web3(Web3.givenProvider || 'HTTP://127.0.0.1:7545')
 // console.log(web3)
 
 // 授权
-web3.eth
-    .requestAccounts()
-    .then((res: any) => {
-        console.log('授权', res)
-    })
-    .catch((err: any) => {
-        console.log('授权失败', err)
-    })
+const requestAccounts = () => {
+    web3.eth
+        .requestAccounts()
+        .then((res: any) => {
+            console.log('授权', res)
+        })
+        .catch((err: any) => {
+            console.log('授权失败', err)
+        })
+}
 
 let accounts = ref([])
 let sendFrom = ref('')
 let sendFromBalance = ref(0)
 let sendTo = ref('')
-let sendNum = ref(0.01)
+let sendNum = ref(0.1)
 
-web3.eth.getAccounts().then((res: any) => {
-    sendFrom.value = res[0]
-    sendTo.value = res[1]
-    accounts.value = res
-
-    getBalance()
-})
+// 获取帐户
+const getAccounts = () => {
+    web3.eth.getAccounts().then((res: any) => {
+        sendFrom.value = res[0]
+        sendTo.value = res[1]
+        accounts.value = res
+        getBalance()
+    })
+}
+getAccounts()
 
 // 查询地址余额
 const getBalance = () => {
