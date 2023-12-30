@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import { chageLanguage } from '@/lang/vanti18n'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -7,6 +7,9 @@ import { storeToRefs } from 'pinia'
 import { useCounterStore } from '@/stores/counter'
 import HelloWord from '@/components/HelloWord.vue'
 import { showToast, showSuccessToast, showLoadingToast } from 'vant'
+import StudentListStorageABI from '../../solidity/build/contracts/StudentListStorage.json'
+import StudentStorageABI from '../../solidity/build/contracts/StudentStorage.json'
+import ArrayList from '../../solidity/build/contracts/ArrayList.json'
 
 const { t, locale } = useI18n()
 const counter = useCounterStore()
@@ -27,8 +30,7 @@ const changeLang = () => {
 }
 
 import { Web3 } from 'web3'
-var web3 = new Web3(Web3.givenProvider || 'HTTP://127.0.0.1:7545')
-// console.log(web3)
+let web3 = new Web3(Web3.givenProvider || 'HTTP://127.0.0.1:7545')
 
 // 授权
 const requestAccounts = () => {
@@ -41,61 +43,87 @@ const requestAccounts = () => {
             console.log('授权失败', err)
         })
 }
+// requestAccounts()
 
-let accounts = ref([])
-let sendFrom = ref('')
-let sendFromBalance = ref(0)
-let sendTo = ref('')
-let sendNum = ref(0.1)
+let accounts = ref([] as any)
+let studentList = ref([] as any)
+let name = ref('名字')
+let age = ref(18)
+const listLoading = ref(false)
+const listFinished = ref(true)
+// 连接智能合约程序
+const studentStorage = new web3.eth.Contract(
+    ArrayList.abi,
+    '0x015AC3dAfCfEC872C1d06b9FF99Fc5e1a2FDac50'
+)
+console.log(studentStorage)
+
+// 调用智能合约的获取数组函数
+studentStorage.methods.getArray().call((error, result) => {
+    console.log(error)
+    console.log(result)
+
+    // if (!error) {
+    //     console.log(
+    //         'Returned Array:',
+    //         result.map(value => web3.utils.hexToNumber(value))
+    //     )
+    // } else {
+    //     console.error('Error fetching array:', error)
+    // }
+})
 
 // 获取帐户
-const getAccounts = () => {
-    web3.eth.getAccounts().then((res: any) => {
-        sendFrom.value = res[0]
-        sendTo.value = res[1]
+const getAccounts = async () => {
+    await web3.eth.getAccounts().then((res: any) => {
         accounts.value = res
-        getBalance()
+        web3.eth.defaultAccount = res[0]
     })
+
+    console.log(studentStorage.methods.myArray.call({ from: accounts.value[0] }))
 }
 getAccounts()
 
-// 查询地址余额
-const getBalance = () => {
-    web3.eth.getBalance(sendFrom.value).then((res: any) => {
-        sendFromBalance.value = Number(web3.utils.fromWei(res, 'ether'))
-    })
-}
-
-// 加密地址
-const toChecksumAddress = (address: string) => {
-    return `${address.substring(0, 4)}****${address.substring(address.length - 4)}`
-}
-
-// 转账
-const sendTransactionFun = () => {
-    if (sendNum.value == 0) {
-        showToast('转账数量不能为0~')
-        return
-    }
-    if (sendTo.value == '') {
-        showToast('接受地址为空啦~')
-        return
-    }
-
-    showLoadingToast({
-        message: '加载中...',
-        forbidClick: true,
-    })
-
-    web3.eth
-        .sendTransaction({
-            from: sendFrom.value,
-            to: sendTo.value,
-            value: Web3.utils.toWei(sendNum.value, 'ether'),
-        })
+// 获取列表
+const getStudentList = () => {
+    studentStorage.methods
+        .getStudentList()
+        .call({ from: accounts.value[0] })
         .then(res => {
-            showSuccessToast('转账成功')
             console.log(res)
+        })
+    // studentList.value = res
+    // console.log('获取列表', res)
+}
+// getStudentList()
+
+const onLoad = async () => {
+    // 获取列表
+    // getStudentList()
+}
+
+// 添加数据
+const addStudentList = async () => {
+    if (!name.value || !age.value) {
+        showToast({
+            message: '请填写完整',
+            type: 'fail',
+        })
+        return
+    }
+    showLoadingToast({
+        message: '添加中...',
+    })
+    await studentStorage.methods
+        .addStudentList(name.value, age.value)
+        .send({ from: accounts.value[0] })
+        .then((res: any) => {
+            // console.log('添加成功', res)
+            showSuccessToast({
+                message: '添加成功',
+            })
+
+            getStudentList()
         })
 }
 </script>
@@ -106,12 +134,14 @@ const sendTransactionFun = () => {
     </van-button>
     <HelloWord class="HelloWord" :msg="$t('helloWeb3')" />
 
-    <div class="balance">余额: {{ sendFromBalance }} (ETH)</div>
-    <van-field v-model="sendFrom" label="我的地址" />
-    <van-field v-model="sendNum" label="数量(ETH)" />
-    <van-field v-model="sendTo" label="转账到" />
+    <van-field v-model="name" label="我的名字" />
+    <van-field v-model="age" label="年龄" />
 
-    <div class="transaction" @click="sendTransactionFun">转账</div>
+    <div class="add" @click="addStudentList">添加</div>
+
+    <!-- <van-list v-model:loading="listLoading" :finished="listFinished" finished-text="没有更多了" @load="onLoad">
+        <van-cell v-for="item in studentList" :key="item" :title="item" />
+    </van-list> -->
 </template>
 
 <style lang="scss" scoped>
@@ -124,12 +154,7 @@ const sendTransactionFun = () => {
 .HelloWord {
     margin-top: 20px;
 }
-.balance {
-    margin-top: 20px;
-    text-align: center;
-    font-size: 16px;
-}
-.transaction {
+.add {
     margin: 20px auto;
     width: 80%;
     height: 32px;
